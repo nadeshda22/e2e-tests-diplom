@@ -18,7 +18,7 @@ npm install
 
 ---
 
-## ✅ Первый сценарий: «Открытие главной страницы»
+## ✅ 01: «Открытие главной страницы»
 
 Этот сценарий является **smoke-тестом** — проверяет, что приложение запущено и доступно.
 
@@ -46,7 +46,15 @@ npm install
 
 ---
 
-## 📥 Второй сценарий: «Импорт JSON-файла»
+## Запуск теста
+
+```bash
+	npx nightwatch --tag smoke
+```
+
+---
+
+## 📥 02: «Импорт JSON-файла»
 
 Этот сценарий проверяет, что приложение может корректно загрузить учебный план из JSON-файла.
 
@@ -77,22 +85,59 @@ npm install
 
 ---
 
+## Запуск теста
+
+```bash
+	npx nightwatch --tag import
+```
+
+---
+
+## 04. Развёртывание дерева дисциплин
+
+Проверяет, что после импорта можно развернуть дерево и отображаются все разделы.
+
+| Шаг | Действие | Ожидаемый результат |
+|-----|----------|---------------------|
+| 1 | Импортировать JSON-файл | Данные загружены |
+| 2 | Нажать кнопку «Развернуть дерево элементов» | Дерево раскрывается |
+| 3 | Проверить количество элементов | Найдено не менее 10 элементов |
+
+**Файл сценария `features/04_tree.feature`:**
+
+```gherkin
+#language: ru
+Функция: Навигация по дереву учебного плана
+
+  @tree @smoke
+  Сценарий: 04.01 Развёртывание дерева после импорта
+    Дано приложение открыто по адресу "http://localhost:3001/38/"
+    Когда я нажимаю кнопку импорта
+    И я загружаю файл "test_data/up-20260305130554.json"
+    Тогда отображается номер специальности
+    Когда я нажимаю кнопку "Развернуть дерево элементов"
+    Тогда дерево дисциплин содержит не менее 10 элементов
+```
+
+---
+
+## Запуск теста
+
+```bash
+npx nightwatch --tag tree
+```
+
+---
 ## 🚀 Запуск тестов
 
 ### Команды
 
 ```bash
 # Все тесты
-npx nightwatch
-
-# Только smoke-тесты
-npx nightwatch --tag smoke
-
-# Только тесты импорта
-npx nightwatch --tag import
+  npx nightwatch
 
 # С подробным выводом
-npx nightwatch --verbose
+  npx nightwatch --verbose
 ```
 
 ## 📁 Структура проекта
@@ -100,17 +145,38 @@ npx nightwatch --verbose
 ```
 e2e-tests-diplom/
 ├── features/
-│   ├── 01_smoke.feature          # Smoke-тест
-│   └── 02_import.feature         # Тест импорта
+│   ├── 01_smoke.feature           # Smoke-тест (открытие страницы)
+│   ├── 02_import.feature          # Тест импорта JSON
+│   ├── 03_export.feature          # Тест экспорта PDF
+│   └── 04_expand_tree.feature     # Тест развёртывания дерева
 ├── step_definitions/
-│   └── all_steps.js              # Все шаги (Given/When/Then)
+│   └── all_steps.js               # Все шаги (Given/When/Then)
+├── pages/
+│   ├── BasePage.js                # Базовый класс для страниц
+│   ├── MainPage.js                # Главная страница
+│   ├── ImportModal.js             # Модальное окно импорта
+│   ├── PDFExporter.js             # Экспорт PDF
+│   └── DisciplineManager.js       # Управление дисциплинами (дерево)
+├── utils/
+│   ├── FileUtils.js               # Работа с файловой системой
+│   ├── HashUtils.js               # Вычисление MD5-хэшей
+│   └── PdfUtils.js                # Работа с PDF-документами
 ├── test_data/
-│   └── up-20260305130554.json    # Тестовый JSON-файл
+│   └── up-20260305130554.json     # Тестовый JSON-файл
 ├── reports/
-│   └── screenshots/              # Скриншоты тестов
-├── logs/                         # Логи ChromeDriver
-├── nightwatch.conf.js            # Конфигурация Nightwatch
+│   └── screenshots/               # Скриншоты тестов
+│       ├── failures/              # Скриншоты упавших тестов
+│       └── *.png                  # Скриншоты пройденных тестов
+├── tests_output/
+│   └── minimal_report.json        # JSON-отчёт о тестировании
+├── logs/
+│   └── _chromedriver.log          # Логи ChromeDriver
+├── baseline/                      # Эталонные файлы (для сравнения PDF)
+├── .idea/                         # Файлы IDE (WebStorm)
+├── .gitignore
+├── nightwatch.conf.js
 ├── package.json
+├── package-lock.json
 └── README.md
 ```
 
