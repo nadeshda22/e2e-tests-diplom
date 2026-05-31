@@ -28,9 +28,9 @@ class MainPage extends BasePage {
         await this.click(this.selectors.dropdownTrigger);
         await this.browser.pause(500);
 
-        console.log('🔘 Нажимаю пункт "Импорт"...');
-        await this.click(this.selectors.importMenuItem);
-        await this.browser.pause(1000);
+        // console.log('🔘 Нажимаю пункт "Импорт"...');
+        // await this.click(this.selectors.importMenuItem);
+        // await this.browser.pause(1000);
         await this.takeScreenshot('import_menu_clicked');
         return this;
     }

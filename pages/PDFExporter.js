@@ -4,74 +4,67 @@ class PDFExporter {
     }
 
     async openPDFViewer() {
-        console.log('🔘 Открываю просмотрщик PDF...');
-
         const selector = 'button[title="Краткий документ"]';
-
-        // Ждём, пока кнопка станет видимой
-        await this.browser.waitForElementVisible(selector, 10000);
-
-        // Кликаем через JavaScript
         await this.browser.execute(function(sel) {
             const el = document.querySelector(sel);
             if (el) el.click();
         }, [selector]);
-
-        console.log('✅ Клик выполнен');
-        await this.browser.pause(3000);
-
-        // Проверяем, появился ли pdf-viewer
-        const hasViewer = await this.browser.execute(function() {
-            return !!document.querySelector('pdf-viewer');
-        });
-
-        console.log(`📌 pdf-viewer найден: ${hasViewer}`);
-
-        if (!hasViewer) {
-            // Если не нашли, попробуем найти embed или iframe
-            const elements = await this.browser.execute(function() {
-                return {
-                    embed: !!document.querySelector('embed'),
-                    iframe: !!document.querySelector('iframe'),
-                    object: !!document.querySelector('object'),
-                    bodyText: document.body.innerText.substring(0, 200)
-                };
-            });
-            console.log('📌 Другие элементы:', elements);
-        }
-
         console.log('✅ Просмотрщик PDF открыт');
     }
 
-    async downloadPDF() {
-        console.log('⏳ Ожидание загрузки PDF viewer...');
-        await this.browser.pause(3000);
+    async downloadPDFViewer() {
+        const myIframe = await this.browser.findElement('iframe[title="pdfOutput"]');
+        await this.browser.frame(myIframe);
 
-        const result = await this.browser.execute(function() {
-            const viewer = document.querySelector('pdf-viewer');
-            if (!viewer) {
-                return 'pdf-viewer not found';
+        const selector = '#main-content a';
+
+        await this.browser.pause(1000);
+
+        console.log('🔘 Извлекаю ссылку из синей кнопки внутри iframe...');
+
+        const result_href = await this.browser.execute(function (sel) {
+            const el = document.querySelector(sel);
+            if (!el) {
+                return { error: 'Элемент по селектору ' + sel + ' не найден' };
             }
-            const shadow1 = viewer.shadowRoot;
-            if (!shadow1) return 'shadowRoot1 not found';
-            const toolbar = shadow1.querySelector('#toolbar');
-            if (!toolbar) return 'toolbar not found';
-            const shadow2 = toolbar.shadowRoot;
-            if (!shadow2) return 'shadowRoot2 not found';
-            const saveButton = shadow2.querySelector('cr-icon-button#save');
-            if (!saveButton) return 'save button not found';
-            saveButton.click();
-            return 'clicked';
-        });
 
-        console.log('📌 RESULT:', result);
-        const status = result.value || result;
+            const href = el.getAttribute('href') || el.closest('a')?.getAttribute('href');
 
-        if (status !== 'clicked') {
-            throw new Error(`❌ ${status}`);
+            if (!href) {
+                return { error: 'Не удалось найти URL-ссылку на PDF у этого элемента' };
+            }
+
+            return href ;
+        }, [selector]);
+        await this.browser.frameParent();
+
+        console.log(`🔗 Ссылка на PDF успешно получена: ${result_href}`);
+        console.log('🔘 Открываю ссылку в новой вкладке для принудительного скачивания...');
+
+        await this.browser.execute(function (pdfUrl) {
+            window.open(pdfUrl, '_blank');
+        }, [result_href]);
+
+        await this.browser.pause(1000);
+
+        console.log('🔘 Возвращаю контекст браузера на основную страницу...');
+        await this.browser.frameParent();
+
+        console.log('✅ Команда на скачивание в новой вкладке выполнена');
+        return 'download_started';
+    }async getFileMd5(filePath) {
+        const fileBuffer = fs.readFileSync(filePath);
+        return crypto.createHash('md5').update(fileBuffer).digest('hex');
+    }
+
+    clearFolder(folderPath) {
+        const fullPath = path.resolve(folderPath);
+        if (fs.existsSync(fullPath)) {
+            const files = fs.readdirSync(fullPath);
+            for (const file of files) {
+                fs.unlinkSync(path.join(fullPath, file));
+            }
         }
-
-        console.log('✅ PDF скачан');
     }
 }
 

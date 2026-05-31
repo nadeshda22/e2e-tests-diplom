@@ -1,17 +1,24 @@
-const {
-    Given,
-    When,
-    Then
-} = require('@cucumber/cucumber');
-
 const path = require('path');
 const fs = require('fs');
 const { expect } = require('chai');
 const MainPage = require('../pages/MainPage');
 const ImportModal = require('../pages/ImportModal');
 const PDFExporter = require('../pages/PDFExporter');
-const DisciplineManager = require('../pages/DisciplineManager');
+const DisciplineManager = require('../pages/DisciplineManager')
 const screenshotsDir = path.resolve('reports/screenshots');
+const {
+    Given,
+    When,
+    Then,
+    Before, And
+} = require('@cucumber/cucumber');
+
+let disciplineManager
+Before(function () {
+
+    disciplineManager =
+        new DisciplineManager(this.browser)
+})
 
 if (fs.existsSync(screenshotsDir)) {
 
@@ -36,6 +43,8 @@ if (fs.existsSync(screenshotsDir)) {
     );
 }
 
+// ========== ШАГИ ДЛЯ ТЕСТА 01  ==========
+
 When(
     'я открываю главную страницу',
     async function () {
@@ -47,8 +56,7 @@ Then(
     async function (expectedText) {
         const title = await this.mainPage.getPageTitle();
         expect(title).to.include(expectedText);
-        await this.mainPage.takeScreenshot('title_verified');
-    });
+        await this.mainPage.takeScreenshot('title_verified'); });
 
 Given(
     'приложение открыто по адресу {string}',
@@ -67,6 +75,8 @@ Given(
     }
 );
 
+// ========== ШАГИ ДЛЯ ТЕСТА 02  ==========
+
 When('я нажимаю кнопку импорта', async function () {
     await this.mainPage.openImportMenu();
 });
@@ -82,10 +92,11 @@ Then('отображается номер специальности', async fun
     await this.mainPage.takeScreenshot('specialty_number_found');
 });
 
+// ========== ШАГИ ДЛЯ ТЕСТА 03  ==========
+
 When(
     'я открываю просмотрщик PDF',
     async function () {
-
         await this.pdfExporter.openPDFViewer();
     }
 );
@@ -93,40 +104,19 @@ When(
 When(
     'я скачиваю PDF из просмотрщика',
     async function () {
-
-        this.lastPDFPath =
-            await this.pdfExporter.downloadPDF();
+        await this.pdfExporter.downloadPDFViewer();
     }
 );
 
 Then(
-    'PDF сохраняется в папку {string}',
-    async function (folder) {
-
-        const fullPath =
-            path.resolve(folder);
-
-        const files =
-            fs.readdirSync(fullPath);
-
-        const pdfs =
-            files.filter(
-                f => f.endsWith('.pdf')
-            );
-
-        if (pdfs.length === 0) {
-
-            throw new Error(
-                '❌ PDF не найден'
-            );
-        }
-
-        console.log(
-            `✅ PDF найден: ${pdfs[0]}`
-        );
+    'скачанный PDF в папке {string} совпадает с эталоном {string}',
+    async function (downloadFolder, referenceFileName) {
+        await this.pdfExporter.comparePdfFiles(downloadFolder, referenceFileName);
     }
-
 );
+
+
+// ========== ШАГИ ДЛЯ ТЕСТА 04  ==========
 
 When('я нажимаю кнопку "Развернуть дерево элементов"', async function () {
     const disciplineManager = new DisciplineManager(this.browser)
@@ -135,16 +125,57 @@ When('я нажимаю кнопку "Развернуть дерево элем
 
 
 Then('дерево дисциплин содержит не менее {int} элементов', async function (minCount) {
-    // СОЗДАЁМ ЭКЗЕМПЛЯР ПРЯМО ЗДЕСЬ
     const disciplineManager = new DisciplineManager(this.browser)
 
-    // Ждём раскрытия дерева (ждём, пока элементов станет >= minCount)
+    // Ждём раскрытия дерева
     const actualCount = await disciplineManager.waitForTreeExpanded(minCount, 10000)
 
     await this.browser.saveScreenshot(
-        path.resolve('reports/screenshots', 'tree_expanded.png')
+        require('path').resolve('reports/screenshots', 'tree_expanded.png')
     )
 
+    const { expect } = require('chai')
     expect(actualCount).to.be.at.least(minCount)
     console.log(`✅ Дерево содержит ${actualCount} элементов (минимум ${minCount})`)
 })
+
+
+// ========== ШАГИ ДЛЯ ТЕСТА 05  ==========
+
+When('я нажимаю кнопку добавления элемента плана', async function () {
+    await disciplineManager.openAddDialog()
+})
+
+When('я выбираю тип {string}', async function (type) {
+    await disciplineManager.selectDisciplineType(type)
+})
+
+When('я выбираю дисциплину {string}', async function (name) {
+
+    await disciplineManager.searchAndSelectDiscipline(name)
+})
+
+When('я нажимаю {string}', async function (buttonText) {
+
+    if (buttonText === 'Принять') {
+        await disciplineManager.clickAccept()
+    }
+})
+
+When('я выбираю раздел {string}', async function (section) {
+    await disciplineManager.selectSection(section)
+
+    await disciplineManager.closeAddDialog()
+})
+
+Then('дисциплина отображается в дереве', async function () {
+    const exists =
+        await disciplineManager.isDisciplineInTree(
+            'Инновации в высшем образовании и современном образовании обучающихся'
+        )
+
+    if (!exists) {
+        throw new Error('Дисциплина не найдена')
+    }
+
+});
