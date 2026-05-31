@@ -1,10 +1,8 @@
-// pages/DisciplineManager.js
 class DisciplineManager {
     constructor(browser) {
         this.browser = browser
     }
 
-    // Селекторы
     get expandTreeButton() {
         return 'button[title="Развернуть дерево элементов"]'
     }
@@ -13,11 +11,9 @@ class DisciplineManager {
         return '.uptem'
     }
 
-    // Метод для нажатия на кнопку развёртывания
     async expandTree() {
         await this.browser.waitForElementVisible(this.expandTreeButton, 10000)
 
-        // Пробуем кликнуть несколько раз с паузой
         for (let i = 0; i < 3; i++) {
             await this.browser.click(this.expandTreeButton)
             await this.browser.pause(500)
@@ -44,6 +40,12 @@ class DisciplineManager {
         const finalElements = await this.browser.findElements(this.treeItems)
         return finalElements.length
     }
+
+    //=========================
+
+
+
+
 
 }
 

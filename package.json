@@ -5,5 +5,8 @@
     "chai": "^6.2.2",
     "chrome-remote-interface": "^0.34.0",
     "nightwatch": "^3.16.0"
+  },
+  "dependencies": {
+    "pdf-parse": "^2.4.5"
   }
 }

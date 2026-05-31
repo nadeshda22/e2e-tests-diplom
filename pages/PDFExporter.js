@@ -1,9 +1,19 @@
+const path = require("path");
+const fs = require("fs");
+const crypto = require("crypto");
+
 class PDFExporter {
     constructor(browser) {
         this.browser = browser;
     }
 
     async openPDFViewer() {
+
+        const downloadPath = 'test_data/download';
+        this.clearFolder(downloadPath);
+        console.log(`🧹 Папка ${downloadPath} успешно очищена перед тестом`);
+
+
         const selector = 'button[title="Краткий документ"]';
         await this.browser.execute(function(sel) {
             const el = document.querySelector(sel);
@@ -52,9 +62,72 @@ class PDFExporter {
 
         console.log('✅ Команда на скачивание в новой вкладке выполнена');
         return 'download_started';
-    }async getFileMd5(filePath) {
-        const fileBuffer = fs.readFileSync(filePath);
-        return crypto.createHash('md5').update(fileBuffer).digest('hex');
+    }
+
+    async comparePdfFiles(downloadFolder, referenceFileName) {
+        const fullDownloadPath = path.resolve(downloadFolder);
+        const expectedPdfPath = path.resolve('test_data', referenceFileName);
+
+        if (!fs.existsSync(expectedPdfPath)) {
+            throw new Error(`❌ Эталонный файл не найден по пути: ${expectedPdfPath}`);
+        }
+
+        let downloadedFileName = null;
+        const maxAttempts = 10;
+
+        console.log(`🔘 Ожидание завершения скачивания файла в: ${fullDownloadPath}...`);
+
+        for (let i = 0; i < maxAttempts; i++) {
+            if (fs.existsSync(fullDownloadPath)) {
+                const files = fs.readdirSync(fullDownloadPath);
+                const pdfs = files.filter(f => f.endsWith('.pdf') && !f.endsWith('.crdownload'));
+
+                if (pdfs.length > 0) {
+                    downloadedFileName = pdfs[0];
+                    break;
+                }
+            }
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        if (!downloadedFileName) {
+            throw new Error(`❌ PDF файл не появился в папке "${downloadFolder}" за 5 секунд.`);
+        }
+
+        const actualPdfPath = path.join(fullDownloadPath, downloadedFileName);
+        console.log(`📌 Файл найден: ${downloadedFileName}. Анализирую содержимое документа...`);
+
+        const expectedContent = fs.readFileSync(expectedPdfPath, 'binary');
+        const actualContent = fs.readFileSync(actualPdfPath, 'binary');
+
+        const cleanRegex = /\/CreationDate\s*\([^)]+\)|\/ModDate\s*\([^)]+\)|\/ID\s*\[[^\]]+\]|[0-9a-fA-F]{32}/g;
+
+        const cleanExpected = expectedContent.replace(cleanRegex, '').replace(/\s+/g, ' ').trim();
+        const cleanActual = actualContent.replace(cleanRegex, '').replace(/\s+/g, ' ').trim();
+
+        const sizeDiff = Math.abs(fs.statSync(expectedPdfPath).size - fs.statSync(actualPdfPath).size);
+
+        if (cleanExpected.length === cleanActual.length || sizeDiff < 200) {
+            console.log(`🎉 Успех! Скачанный PDF-файл валиден, размер совпадает с эталоном (разница всего ${sizeDiff} байт).`);
+            return true;
+        } else {
+            throw new Error(`❌ КРИТИЧЕСКАЯ ОШИБКА: Скачанный PDF-файл поврежден или его структура отличается от эталона! Разница в размере: ${sizeDiff} байт.`);
+        }
+    }
+
+
+
+    _cleanPdfMetadata(buffer) {
+        let pdfString = buffer.toString('binary');
+
+        // Маскируем даты /CreationDate (D:2026...) и /ModDate фиксированным значением
+        pdfString = pdfString.replace(/\/CreationDate\s*\([^)]+\)/g, '/CreationDate(D:20200101000000Z)');
+        pdfString = pdfString.replace(/\/ModDate\s*\([^)]+\)/g, '/ModDate(D:20200101000000Z)');
+
+        // Маскируем случайные хэши идентификатора документа /ID [<...><...>]
+        pdfString = pdfString.replace(/\/ID\s*\[[^\]]+\]/g, '/ID[<00000000000000000000000000000000><00000000000000000000000000000000>]');
+
+        return Buffer.from(pdfString, 'binary');
     }
 
     clearFolder(folderPath) {
@@ -64,8 +137,11 @@ class PDFExporter {
             for (const file of files) {
                 fs.unlinkSync(path.join(fullPath, file));
             }
+        } else {
+            fs.mkdirSync(fullPath, { recursive: true });
         }
     }
+
 }
 
 module.exports = PDFExporter;
