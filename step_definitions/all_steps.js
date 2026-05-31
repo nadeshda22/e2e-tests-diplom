@@ -146,26 +146,13 @@ When('я нажимаю кнопку добавления элемента пл�
     await disciplineManager.openAddDialog()
 })
 
-When('я выбираю тип {string}', async function (type) {
-    await disciplineManager.selectDisciplineType(type)
-})
-
-When('я выбираю дисциплину {string}', async function (name) {
-
-    await disciplineManager.searchAndSelectDiscipline(name)
-})
-
-When('я нажимаю {string}', async function (buttonText) {
-
-    if (buttonText === 'Принять') {
-        await disciplineManager.clickAccept()
-    }
-})
+When('я выбираю дисциплину с названием {string}', async function (name) {
+    await disciplineManager.selectDisciplineType(name);
+});
 
 When('я выбираю раздел {string}', async function (section) {
     await disciplineManager.selectSection(section)
 
-    await disciplineManager.closeAddDialog()
 })
 
 Then('дисциплина отображается в дереве', async function () {
@@ -179,3 +166,4 @@ Then('дисциплина отображается в дереве', async func
     }
 
 });
+
