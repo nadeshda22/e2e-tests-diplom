@@ -15,7 +15,6 @@ class MainPage extends BasePage {
     async open() {
         await this.browser.url(this.url);
         await this.waitForVisible('body');
-        console.log(`✅ Главная страница открыта: ${this.url}`);
         return this;
     }
 
@@ -24,13 +23,8 @@ class MainPage extends BasePage {
     }
 
     async openImportMenu() {
-        console.log('🔘 Открываю меню "Настройка"...');
         await this.click(this.selectors.dropdownTrigger);
         await this.browser.pause(500);
-
-        // console.log('🔘 Нажимаю пункт "Импорт"...');
-        // await this.click(this.selectors.importMenuItem);
-        // await this.browser.pause(1000);
         await this.takeScreenshot('import_menu_clicked');
         return this;
     }
@@ -38,7 +32,6 @@ class MainPage extends BasePage {
     async getSpecialtyNumber() {
         await this.waitForVisible(this.selectors.specialtyNumber);
         const text = await this.getText(this.selectors.specialtyNumber);
-        console.log(`📌 Номер специальности: "${text}"`);
         return text;
     }
 
@@ -46,7 +39,6 @@ class MainPage extends BasePage {
         const timestamp = Date.now();
         const filename = `${name}_${timestamp}.png`;
         await this.browser.saveScreenshot(`reports/screenshots/${filename}`);
-        console.log(`📸 Скриншот: ${filename}`);
     }
 }
 

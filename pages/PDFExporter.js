@@ -10,7 +10,6 @@ class PDFExporter {
 
         const downloadPath = 'test_data/download';
         this.clearFolder(downloadPath);
-        console.log(`🧹 Папка ${downloadPath} успешно очищена перед тестом`);
 
 
         const selector = 'button[title="Краткий документ"]';
@@ -18,7 +17,6 @@ class PDFExporter {
             const el = document.querySelector(sel);
             if (el) el.click();
         }, [selector]);
-        console.log('✅ Просмотрщик PDF открыт');
     }
 
     async downloadPDFViewer() {
@@ -28,8 +26,6 @@ class PDFExporter {
         const selector = '#main-content a';
 
         await this.browser.pause(1000);
-
-        console.log('🔘 Извлекаю ссылку из синей кнопки внутри iframe...');
 
         const result_href = await this.browser.execute(function (sel) {
             const el = document.querySelector(sel);
@@ -47,19 +43,13 @@ class PDFExporter {
         }, [selector]);
         await this.browser.frameParent();
 
-        console.log(`🔗 Ссылка на PDF успешно получена: ${result_href}`);
-        console.log('🔘 Открываю ссылку в новой вкладке для принудительного скачивания...');
-
         await this.browser.execute(function (pdfUrl) {
             window.open(pdfUrl, '_blank');
         }, [result_href]);
 
         await this.browser.pause(1000);
 
-        console.log('🔘 Возвращаю контекст браузера на основную страницу...');
         await this.browser.frameParent();
-
-        console.log('✅ Команда на скачивание в новой вкладке выполнена');
         return 'download_started';
     }
 
@@ -73,8 +63,6 @@ class PDFExporter {
 
         let downloadedFileName = null;
         const maxAttempts = 10;
-
-        console.log(`🔘 Ожидание завершения скачивания файла в: ${fullDownloadPath}...`);
 
         for (let i = 0; i < maxAttempts; i++) {
             if (fs.existsSync(fullDownloadPath)) {
@@ -94,7 +82,6 @@ class PDFExporter {
         }
 
         const actualPdfPath = path.join(fullDownloadPath, downloadedFileName);
-        console.log(`📌 Файл найден: ${downloadedFileName}. Анализирую содержимое документа...`);
 
         const expectedContent = fs.readFileSync(expectedPdfPath, 'binary');
         const actualContent = fs.readFileSync(actualPdfPath, 'binary');
@@ -119,11 +106,9 @@ class PDFExporter {
     _cleanPdfMetadata(buffer) {
         let pdfString = buffer.toString('binary');
 
-        // Маскируем даты /CreationDate (D:2026...) и /ModDate фиксированным значением
         pdfString = pdfString.replace(/\/CreationDate\s*\([^)]+\)/g, '/CreationDate(D:20200101000000Z)');
         pdfString = pdfString.replace(/\/ModDate\s*\([^)]+\)/g, '/ModDate(D:20200101000000Z)');
 
-        // Маскируем случайные хэши идентификатора документа /ID [<...><...>]
         pdfString = pdfString.replace(/\/ID\s*\[[^\]]+\]/g, '/ID[<00000000000000000000000000000000><00000000000000000000000000000000>]');
 
         return Buffer.from(pdfString, 'binary');

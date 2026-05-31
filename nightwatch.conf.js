@@ -57,10 +57,10 @@ module.exports = {
       globals: {
 
         waitForConditionTimeout:
-            30000,
+            3000,
 
         asyncHookTimeout:
-            120000,
+            1200,
 
         retryAssertionTimeout:
             5000,

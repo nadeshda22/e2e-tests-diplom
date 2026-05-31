@@ -164,6 +164,51 @@ Then('дисциплина отображается в дереве', async func
     if (!exists) {
         throw new Error('Дисциплина не найдена')
     }
-
 });
+
+When('я открываю редактирование этой дисциплины', async function () {
+    await disciplineManager.openEditDiscipline(
+        'Инновации в высшем образовании и современном образовании обучающихся'
+    );
+});
+
+When('я устанавливаю семестр {string}', async function (semester) {
+    await disciplineManager.setSemester(semester);
+});
+
+When('я устанавливаю часы {string} в семестре {string} в {string}', async function (fieldType, semester, hours) {
+    await disciplineManager.setHours(semester, fieldType, hours);
+});
+
+Then('поле часов {string} в семестре {string} должно содержать {string}', async function (fieldType, semester, expectedValue) {
+    const currentValue = await disciplineManager.getHoursValue(semester, fieldType);
+
+    const actual = String(currentValue !== undefined && currentValue !== null ? currentValue : '').trim();
+    const expected = String(expectedValue).trim();
+
+    if (actual !== expected) {
+        throw new Error(`Ошибка валидации! Для семестра ${semester} поля "${fieldType}" ожидалось: "${expected}", а в поле сейчас: "${actual}"`);
+    }
+    console.log(`✅ Валидация успешна. Семестр ${semester}, поле "${fieldType}" содержит: "${actual}"`);
+});
+
+When('я сохраняю изменения', async function () {
+    await disciplineManager.saveChanges();
+});
+
+// Перехватываем название и передаем его в менеджер страниц
+When('я удаляю дисциплину {string}', async function (disciplineName) {
+    await disciplineManager.deleteDiscipline(disciplineName);
+});
+
+Then('дисциплина {string} отсутствует в дереве', async function (disciplineName) {
+    const exists = await disciplineManager.isDisciplineInTree(disciplineName);
+
+    if (exists) {
+        throw new Error(`Ошибка! Дисциплина "${disciplineName}" всё еще отображается в дереве после удаления`);
+    }
+    console.log(`✅ Успешно. Дисциплина "${disciplineName}" удалена и отсутствует в дереве.`);
+});
+
+
 
