@@ -101,19 +101,6 @@ class PDFExporter {
         }
     }
 
-
-
-    _cleanPdfMetadata(buffer) {
-        let pdfString = buffer.toString('binary');
-
-        pdfString = pdfString.replace(/\/CreationDate\s*\([^)]+\)/g, '/CreationDate(D:20200101000000Z)');
-        pdfString = pdfString.replace(/\/ModDate\s*\([^)]+\)/g, '/ModDate(D:20200101000000Z)');
-
-        pdfString = pdfString.replace(/\/ID\s*\[[^\]]+\]/g, '/ID[<00000000000000000000000000000000><00000000000000000000000000000000>]');
-
-        return Buffer.from(pdfString, 'binary');
-    }
-
     clearFolder(folderPath) {
         const fullPath = path.resolve(folderPath);
         if (fs.existsSync(fullPath)) {

@@ -30,7 +30,7 @@ class MainPage extends BasePage {
     }
 
     async getSpecialtyNumber() {
-        await this.waitForVisible(this.selectors.specialtyNumber);
+        await this.waitForVisible(this.selectors.specialtyNumber,10000);
         const text = await this.getText(this.selectors.specialtyNumber);
         return text;
     }
