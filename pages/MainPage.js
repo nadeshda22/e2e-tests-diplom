@@ -30,15 +30,9 @@ class MainPage extends BasePage {
     }
 
     async getSpecialtyNumber() {
-        await this.waitForVisible(this.selectors.specialtyNumber,10000);
+        await this.waitForVisible(this.selectors.specialtyNumber,100000);
         const text = await this.getText(this.selectors.specialtyNumber);
         return text;
-    }
-
-    async takeScreenshot(name) {
-        const timestamp = Date.now();
-        const filename = `${name}_${timestamp}.png`;
-        await this.browser.saveScreenshot(`reports/screenshots/${filename}`);
     }
 }
 

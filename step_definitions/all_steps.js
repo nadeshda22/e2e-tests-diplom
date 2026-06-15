@@ -4,85 +4,78 @@ const { expect } = require('chai');
 const MainPage = require('../pages/MainPage');
 const ImportModal = require('../pages/ImportModal');
 const PDFExporter = require('../pages/PDFExporter');
-const DisciplineManager = require('../pages/DisciplineManager')
+const DisciplineManager = require('../pages/DisciplineManager');
+const { Given, When, Then, Before, After, AfterAll } = require('@cucumber/cucumber');
+
 const screenshotsDir = path.resolve('reports/screenshots');
-const {
-    Given,
-    When,
-    Then,
-    Before, And
-} = require('@cucumber/cucumber');
+let disciplineManager = null;
 
-let disciplineManager
-Before(function () {
+// ========== ХУКИ ==========
 
-    disciplineManager =
-        new DisciplineManager(this.browser)
-})
+Before(async function (scenario) {
+    this.scenarioName = scenario.pickle.name;
+    console.log(`\n🎬 Сценарий: ${this.scenarioName}`);
+});
 
-if (fs.existsSync(screenshotsDir)) {
+// Хук после каждого сценария - для скриншота при падении
+After(async function (scenario) {
+    if (scenario.result?.status === 'FAILED') {
+        console.log(`❌ Сценарий упал: ${this.scenarioName}`);
 
-    const files =
-        fs.readdirSync(screenshotsDir);
-
-    for (const file of files) {
-
-        if (file.endsWith('.png')) {
-
-            fs.unlinkSync(
-                path.join(
-                    screenshotsDir,
-                    file
-                )
-            );
+        // Делаем скриншот ошибки
+        if (this.mainPage) {
+            await this.mainPage.takeScreenshot(`FAILED_${this.scenarioName}`);
+        }
+        if (disciplineManager) {
+            await disciplineManager.takeScreenshot(`FAILED_${this.scenarioName}`);
         }
     }
+});
 
-    console.log(
-        '🗑️ Старые скриншоты удалены'
-    );
+// Очистка старых скриншотов
+if (fs.existsSync(screenshotsDir)) {
+    const files = fs.readdirSync(screenshotsDir);
+    for (const file of files) {
+        if (file.endsWith('.png')) {
+            fs.unlinkSync(path.join(screenshotsDir, file));
+        }
+    }
+    console.log('🗑️ Старые скриншоты удалены');
 }
 
-// ========== ШАГИ ДЛЯ ТЕСТА 01  ==========
+// ========== ШАГИ ДЛЯ ТЕСТА 01 ==========
 
-When(
-    'я открываю главную страницу',
-    async function () {
-        await this.mainPage.open();
-    });
+When('я открываю главную страницу', async function () {
+    await this.mainPage.open();
+});
 
-Then(
-    'заголовок страницы содержит {string}',
-    async function (expectedText) {
-        const title = await this.mainPage.getPageTitle();
-        expect(title).to.include(expectedText);
-        await this.mainPage.takeScreenshot('title_verified'); });
+Then('заголовок страницы содержит {string}', async function (expectedText) {
+    const title = await this.mainPage.getPageTitle();
+    expect(title).to.include(expectedText);
+    await this.mainPage.takeScreenshot('title_verified');
+});
 
-Given(
-    'приложение открыто по адресу {string}',
-    async function (url) {
+Given('приложение открыто по адресу {string}', async function (url) {
+    this.mainPage = new MainPage(this.browser);
+    this.importModal = new ImportModal(this.browser);
+    this.pdfExporter = new PDFExporter(this.browser);
 
-        this.mainPage =
-            new MainPage(this.browser);
-
-        this.importModal =
-            new ImportModal(this.browser);
-
-        this.pdfExporter =
-            new PDFExporter(this.browser);
-
-        await this.browser.url(url);
+    if (!disciplineManager) {
+        disciplineManager = new DisciplineManager(this.browser);
+    } else {
+        disciplineManager.browser = this.browser;
     }
-);
 
-// ========== ШАГИ ДЛЯ ТЕСТА 02  ==========
+    await this.browser.url(url);
+});
+
+// ========== ШАГИ ДЛЯ ТЕСТА 02 ==========
 
 When('я нажимаю кнопку импорта', async function () {
     await this.mainPage.openImportMenu();
 });
 
 When('я загружаю файл {string}', async function (filePath) {
-    this.importModal = new ImportModal(this.browser);
     await this.importModal.uploadFile(filePath);
 });
 
@@ -92,77 +85,53 @@ Then('отображается номер специальности', async fun
     await this.mainPage.takeScreenshot('specialty_number_found');
 });
 
-// ========== ШАГИ ДЛЯ ТЕСТА 03  ==========
+// ========== ШАГИ ДЛЯ ТЕСТА 03 ==========
 
-When(
-    'я открываю просмотрщик PDF',
-    async function () {
-        await this.pdfExporter.openPDFViewer();
-    }
-);
+When('я открываю просмотрщик PDF', async function () {
+    await this.pdfExporter.openPDFViewer();
+});
 
-When(
-    'я скачиваю PDF из просмотрщика',
-    async function () {
-        await this.pdfExporter.downloadPDFViewer();
-    }
-);
+When('я скачиваю PDF из просмотрщика', async function () {
+    await this.pdfExporter.downloadPDFViewer();
+});
 
-Then(
-    'скачанный PDF в папке {string} совпадает с эталоном {string}',
-    async function (downloadFolder, referenceFileName) {
-        await this.pdfExporter.comparePdfFiles(downloadFolder, referenceFileName);
-    }
-);
+Then('скачанный PDF в папке {string} совпадает с эталоном {string}', async function (downloadFolder, referenceFileName) {
+    await this.pdfExporter.comparePdfFiles(downloadFolder, referenceFileName);
+});
 
-
-// ========== ШАГИ ДЛЯ ТЕСТА 04  ==========
+// ========== ШАГИ ДЛЯ ТЕСТА 04 ==========
 
 When('я нажимаю кнопку "Развернуть дерево элементов"', async function () {
-    const disciplineManager = new DisciplineManager(this.browser)
-    await disciplineManager.expandTree()
-})
-
+    await disciplineManager.expandTree();
+});
 
 Then('дерево дисциплин содержит не менее {int} элементов', async function (minCount) {
-    const disciplineManager = new DisciplineManager(this.browser)
+    const actualCount = await disciplineManager.waitForTreeExpanded(minCount, 10000);
+    await disciplineManager.takeScreenshot(`tree_contains_${actualCount}_elements`);
+    expect(actualCount).to.be.at.least(minCount);
+    console.log(`✅ Дерево содержит ${actualCount} элементов (минимум ${minCount})`);
+});
 
-    // Ждём раскрытия дерева
-    const actualCount = await disciplineManager.waitForTreeExpanded(minCount, 10000)
-
-    await this.browser.saveScreenshot(
-        require('path').resolve('reports/screenshots', 'tree_expanded.png')
-    )
-
-    const { expect } = require('chai')
-    expect(actualCount).to.be.at.least(minCount)
-    console.log(`✅ Дерево содержит ${actualCount} элементов (минимум ${minCount})`)
-})
-
-
-// ========== ШАГИ ДЛЯ ТЕСТА 05  ==========
+// ========== ШАГИ ДЛЯ ТЕСТА 05 ==========
 
 When('я нажимаю кнопку добавления элемента плана', async function () {
-    await disciplineManager.openAddDialog()
-})
+    await disciplineManager.openAddDialog();
+});
 
 When('я выбираю дисциплину с названием {string}', async function (name) {
     await disciplineManager.selectDisciplineType(name);
 });
 
 When('я выбираю раздел {string}', async function (section) {
-    await disciplineManager.selectSection(section)
-
-})
+    await disciplineManager.selectSection(section);
+});
 
 Then('дисциплина отображается в дереве', async function () {
-    const exists =
-        await disciplineManager.isDisciplineInTree(
-            'Инновации в высшем образовании и современном образовании обучающихся'
-        )
-
+    const exists = await disciplineManager.isDisciplineInTree(
+        'Инновации в высшем образовании и современном образовании обучающихся'
+    );
     if (!exists) {
-        throw new Error('Дисциплина не найдена')
+        throw new Error('Дисциплина не найдена');
     }
 });
 
@@ -182,10 +151,8 @@ When('я устанавливаю часы {string} в семестре {string}
 
 Then('поле часов {string} в семестре {string} должно содержать {string}', async function (fieldType, semester, expectedValue) {
     const currentValue = await disciplineManager.getHoursValue(semester, fieldType);
-
     const actual = String(currentValue !== undefined && currentValue !== null ? currentValue : '').trim();
     const expected = String(expectedValue).trim();
-
     if (actual !== expected) {
         throw new Error(`Ошибка валидации! Для семестра ${semester} поля "${fieldType}" ожидалось: "${expected}", а в поле сейчас: "${actual}"`);
     }
@@ -196,19 +163,14 @@ When('я сохраняю изменения', async function () {
     await disciplineManager.saveChanges();
 });
 
-// Перехватываем название и передаем его в менеджер страниц
 When('я удаляю дисциплину {string}', async function (disciplineName) {
     await disciplineManager.deleteDiscipline(disciplineName);
 });
 
 Then('дисциплина {string} отсутствует в дереве', async function (disciplineName) {
     const exists = await disciplineManager.isDisciplineInTree(disciplineName);
-
     if (exists) {
         throw new Error(`Ошибка! Дисциплина "${disciplineName}" всё еще отображается в дереве после удаления`);
     }
     console.log(`✅ Успешно. Дисциплина "${disciplineName}" удалена и отсутствует в дереве.`);
 });
-
-
-

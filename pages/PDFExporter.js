@@ -1,5 +1,5 @@
-const path = require("path");
-const fs = require("fs");
+const path = require('path');
+const fs = require('fs');
 
 class PDFExporter {
     constructor(browser) {
@@ -10,7 +10,6 @@ class PDFExporter {
 
         const downloadPath = 'test_data/download';
         this.clearFolder(downloadPath);
-
 
         const selector = 'button[title="Краткий документ"]';
         await this.browser.execute(function(sel) {
