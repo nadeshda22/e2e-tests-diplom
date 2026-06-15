@@ -9,59 +9,51 @@ class ImportModal extends BasePage {
         super(browser);
 
         this.selectors = {
-            fileInput: 'input[type="file"]',
+            fileInput: 'li:nth-child(2) input[type=file]',
         };
     }
 
-    async uploadFile(filePath) {
 
-        const absolutePath =
-            path.resolve(filePath);
+    async uploadFile(filePath) {
+        const absolutePath = path.resolve(filePath);
 
         if (!fs.existsSync(absolutePath)) {
-
-            throw new Error(
-                `❌ Файл не найден: ${absolutePath}`
-            );
+            throw new Error(`❌ Файл не найден: ${absolutePath}`);
         }
 
-        console.log(
-            `📁 Загружаю файл: ${absolutePath}`
-        );
+        const fileContent = fs.readFileSync(absolutePath, 'utf8');
+        const fileName = path.basename(absolutePath);
 
-        await this.browser.execute(function(selector) {
+        await this.browser.execute(function(selector, content, name) {
+            const input = document.querySelector(selector);
+            if (!input) return 'Элемент инпута не найден';
 
-            const input =
-                document.querySelector(selector);
+            const blob = new Blob([content], { type: 'application/json' });
+            const file = new File([blob], name, { type: 'application/json' });
 
-            if (input) {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
 
-                input.style.display = 'block';
-                input.style.opacity = '1';
-                input.style.visibility = 'visible';
-                input.style.position = 'fixed';
-                input.style.top = '10px';
-                input.style.left = '10px';
-                input.style.zIndex = '999999';
-            }
+            input.files = dataTransfer.files;
 
-        }, this.selectors.fileInput);
+            const originalOnClick = input.onclick;
+            input.onclick = null;
 
-        await this.browser.pause(500);
+            const event = new Event('change', { bubbles: true, cancelable: true });
 
-        await this.browser.setValue(
-            this.selectors.fileInput,
-            absolutePath
-        );
+            Object.defineProperty(event, 'target', { writable: false, value: input });
 
-        console.log('✅ Файл выбран');
+            input.dispatchEvent(event);
 
-        await this.browser.pause(5000);
+            input.onclick = originalOnClick;
 
-        await this.takeScreenshot(
-            'file_uploaded'
-        );
+            return 'Файл успешно обработан React-компонентом';
+        }, [this.selectors.fileInput, fileContent, fileName]);
+
+        await this.browser.pause(1000);
+        await this.takeScreenshot('file_imported_successfully');
     }
+
 }
 
 module.exports = ImportModal;
