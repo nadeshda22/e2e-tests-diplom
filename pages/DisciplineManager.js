@@ -221,51 +221,71 @@ class DisciplineManager extends BasePage {
         }, [selector]);
     }
 
-    // ======================== УДАЛЕНИЕ ДИСЦИПЛИНЫ ========================
-
     async deleteDiscipline(disciplineName) {
-        console.log(`\n=================== СТАРТ УДАЛЕНИЯ ===================`);
-        console.log(`[INFO] Удаляем дисциплину: "${disciplineName}"`);
+        const disciplineRowXpath = `//div[contains(@class, "uptem")]//span[text()="${disciplineName}"]/ancestor::div[contains(@class, "flex-row")]`;
+        await this.browser.useXpath();
+        await this.browser.waitForElementVisible(disciplineRowXpath, 5000);
 
-        await this.browser.useCss();
+        const trashXpath = `${disciplineRowXpath}//svg[contains(@viewBox, '0 0 24 24')]`;
 
-        const clickResult = await this.browser.execute(function(name) {
-            const rows = document.querySelectorAll('.flex-row, .uptem');
-
-            for (let row of rows) {
-                if (row.innerText && row.innerText.includes(name)) {
-                    const svg = row.querySelector('svg path[d*="M6 19c0"], svg[viewBox="0 0 24 24"]');
-                    if (svg) {
-                        const targetSvg = svg.tagName.toLowerCase() === 'path' ? svg.closest('svg') : svg;
-                        targetSvg.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-                        return 'CLICKED_SUCCESS';
+        try {
+            await this.browser.waitForElementVisible(trashXpath, 3000);
+            await this.browser.click(trashXpath);
+        } catch {
+            const clicked = await this.browser.execute(name => {
+                const rows = document.querySelectorAll('.flex-row');
+                for (const row of rows) {
+                    if (row.innerText?.includes(name)) {
+                        const svgs = row.querySelectorAll('svg');
+                        if (svgs.length > 0) {
+                            const lastSvg = svgs[svgs.length - 1]; // последний SVG
+                            lastSvg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            lastSvg.dispatchEvent(new MouseEvent('click', { view: window, bubbles: true }));
+                            return true;
+                        }
                     }
                 }
+                return false;
+            }, [disciplineName]);
+
+            if (!clicked) {
+                await this.takeScreenshot(`trash_not_found_${disciplineName}`);
+                throw new Error(`[ERROR] Корзина не найдена для: "${disciplineName}"`);
             }
-            return 'NOT_FOUND';
-        }, [disciplineName]);
-
-        console.log(`[JS_RESULT] Статус клика по корзине: ${clickResult}`);
-
-        if (clickResult === 'NOT_FOUND') {
-            throw new Error(`[ERROR] Не удалось найти корзину для дисциплины: "${disciplineName}"`);
         }
 
-        await this.takeScreenshot(`delete_icon_clicked_${disciplineName}`);
+        await this.browser.pause(500);
 
-        const confirmButtonXpath = '//button[.//span[text()="OK" or text()="ОК" or text()="Ok"]]';
+        // 3. Ждем модальное окно и нажимаем OK
+        let modalFound = false;
+        for (let i = 0; i < 10; i++) {
+            const modal = await this.browser.execute(() => document.querySelector('.ant-modal-content'));
+            if (modal) {
+                modalFound = true;
+                await this.takeScreenshot(`modal_found_${disciplineName}`);
 
-        await this.browser.useXpath();
-        await this.browser.waitForElementPresent(confirmButtonXpath, 5000);
-        await this.browser.waitForElementVisible(confirmButtonXpath, 4000);
-        await this.click(confirmButtonXpath);
+                const okButtonXpath = '//div[contains(@class, "ant-modal-footer")]//button[contains(@class, "ant-btn-primary")]';
+                await this.browser.useXpath();
+                await this.browser.waitForElementVisible(okButtonXpath, 3000);
+                await this.browser.click(okButtonXpath);
+                await this.browser.useCss();
+                break;
+            }
+            await this.browser.pause(500);
+        }
 
-        await this.browser.useCss();
-        await this.browser.pause(1500);
+        if (!modalFound) {
+            const stillExists = await this.isDisciplineInTree(disciplineName);
+            if (!stillExists) return;
+
+            await this.takeScreenshot(`modal_not_found_${disciplineName}`);
+            throw new Error(`[ERROR] Модальное окно не появилось`);
+        }
+
+        await this.browser.pause(1000);
         await this.takeScreenshot(`discipline_deleted_${disciplineName}`);
 
-        console.log(`=================== КОНЕЦ УДАЛЕНИЯ ===================\n`);
-    }
+     }
 
     // ======================== СОХРАНЕНИЕ ИЗМЕНЕНИЙ ========================
 
